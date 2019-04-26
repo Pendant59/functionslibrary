@@ -1,0 +1,25 @@
+{
+    "name": "pendant59/functionslibrary",
+    "description": "PHP commonly used function classes",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "pendant59",
+            "email": "861618191@qq.com"
+        }
+    ],
+    "require": {
+        "php": ">=7.0.0"
+    },
+    "keywords": [
+        "php",
+        "function library"
+    ],
+    "homepage": "https://github.com/Pendant59/functionslibrary",
+    "autoload": {
+        "psr-4": {
+            "functionsLibrary\\": "src/"
+        }
+    }
+}
