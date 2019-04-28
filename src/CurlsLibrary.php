@@ -36,12 +36,11 @@ class CurlsLibrary
             'CURLOPT_SSL_VERIFYHOST' => false,
             'CURLOPT_FOLLOWLOCATION' => 1,
             'CURLOPT_RETURNTRANSFER' => 1,
-            'CURLOPT_HEADER'         => 1,
+            'CURLOPT_HEADER'         => false,
             'CURLOPT_CONNECTTIMEOUT' => 5,
             'CURLOPT_TIMEOUT'        => 10,
-            'UserAgent'              => 'Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:61.0) Gecko/20100101 Firefox/61.0',
+            'CURLOPT_USERAGENT'      => 'Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:61.0) Gecko/20100101 Firefox/61.0',
         ];
-
         if (is_array($others) && !empty($others)) {
             $default_config = array_merge($default_config, $others);
         }
@@ -66,15 +65,15 @@ class CurlsLibrary
         curl_setopt($ch, CURLOPT_TIMEOUT, $default_config['CURLOPT_TIMEOUT']);
 
         $result = curl_exec($ch);
-
         if (curl_errno($ch)) {
             $code = curl_errno($ch);
             $message = curl_error($ch);
             curl_close($ch);
             return $this->api_return($code, $message);
         }else{
+            $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
-            return $this->api_return(200, null, $result);
+            return $this->api_return($code, null, $result);
         }
     }
 
@@ -101,10 +100,10 @@ class CurlsLibrary
             'CURLOPT_SSL_VERIFYHOST' => false,
             'CURLOPT_FOLLOWLOCATION' => 1,
             'CURLOPT_RETURNTRANSFER' => 1,
-            'CURLOPT_HEADER'         => 1,
+            'CURLOPT_HEADER'         => false,
             'CURLOPT_CONNECTTIMEOUT' => 5,
             'CURLOPT_TIMEOUT'        => 10,
-            'UserAgent'              => 'Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:61.0) Gecko/20100101 Firefox/61.0',
+            'CURLOPT_USERAGENT'      => 'Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:61.0) Gecko/20100101 Firefox/61.0',
         ];
 
         if (is_array($others) && !empty($others)) {
@@ -131,20 +130,21 @@ class CurlsLibrary
             curl_close($ch);
             return $this->api_return($code, $message);
         }else{
+            $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
-            return $this->api_return(200, null, $result);
+            return $this->api_return($code, null, $result);
         }
     }
 
 
     /**
      * 返回
-     * @param int $code             状态标识
+     * @param int $code             HTTP 状态码
      * @param string $message       提示信息
      * @param array $data           返回数据
      * @return array
      */
-    public function api_return(int $code, string $message = '', array $data = []):array
+    public function api_return(int $code, $message = null, $data = null):array
     {
         $return = [
             'code' => $code,
