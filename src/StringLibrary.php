@@ -13,7 +13,7 @@ class StringLibrary
      * @param string $charset       待截取的字符串的编码 默认 utf-8  仅支持'utf-8', 'gb2312', 'gbk', 'big5'
      * @return false|string
      */
-    public static function mbSubstr(string $str, int $begin, int $length, $suffix = false, $charset = "utf-8") {
+    public static function mbSubstr(string $str, int $begin, int $length, bool $suffix = false, string $charset = "utf-8") {
         if (!in_array($charset, ['utf-8', 'gb2312', 'gbk', 'big5'])) {
             return $str;
         }
