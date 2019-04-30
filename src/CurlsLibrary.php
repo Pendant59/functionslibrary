@@ -1,138 +1,309 @@
 <?php
+declare(strict_types=1);
 namespace functionsLibrary;
 
 
 class CurlsLibrary
 {
+    # 默认请求头 Default header
+    protected static $header_default = [
+        'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Content-Type: application/x-www-form-urlencoded',
+    ];
+
+    # Json请求头 Json header
+    protected static $header_json_default = [
+        'Accept: application/json',
+        'Content-Type: application/json;charset=utf-8',
+    ];
+
+    # 默认cURL设置 Default config
+    protected static $default_config = [
+        'CURLOPT_SSL_VERIFYPEER' => false,
+        'CURLOPT_SSL_VERIFYHOST' => false,
+        'CURLOPT_FOLLOWLOCATION' => 1,
+        'CURLOPT_RETURNTRANSFER' => 1,
+        'CURLOPT_HEADER'         => false,
+        'CURLOPT_CONNECTTIMEOUT' => 5,
+        'CURLOPT_TIMEOUT'        => 10,
+        'CURLOPT_USERAGENT'      => 'Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:61.0) Gecko/20100101 Firefox/61.0',
+    ];
+
+    /**
+     * Curl multi post
+     * @param array $urls
+     * @param array $data
+     * @param array $header
+     * @param array $self_config
+     * @return array
+     */
+    public static function postRequests(array $urls, array $data, array $header = [], array $self_config = [])
+    {
+        # 创建批处理cURL句柄
+        $mh = curl_multi_init();
+        # cURL资源数组
+        $url_handlers = [];
+        # 返回值
+        $url_data = [];
+        # 是否循环 header
+        $loop_header = false;
+
+        if (!empty($header)){
+            if (count($header) == 1) {
+                if (is_array(reset($header))){
+                    return self::api_return(400, 'header 仅支持一维关联数组(通用header)和二维索引数组(每个请求都有一个header)');
+                }
+            } else {
+                if (count($header) !== count($urls) || !is_array(reset($header))) {
+                    return self::api_return(400, 'header 仅支持一维关联数组(通用header)和二维索引数组(每个请求都有一个header)');
+                }
+                $loop_header = true;
+            }
+        }
+
+        foreach($urls as $key => $url) {
+            if ($loop_header){
+                $ch = self::postSingleRequest($url, $data[$key]['data'], $data[$key]['json'], $header[$key], $self_config, false);
+            } else {
+                $ch = self::postSingleRequest($url, $data[$key]['data'], $data[$key]['json'], $header, $self_config, false);
+            }
+            # 存入资源组
+            $url_handlers[] = $ch;
+            # 增加cURL句柄
+            if (!is_resource($ch)) {
+                return self::api_return(400, '非资源类型');
+            }
+            curl_multi_add_handle($mh, $ch);
+        }
+
+        # 活跃的连接数量
+        $active = null;
+
+        do {
+            # curl_multi_exec 处理在栈中的每一个句柄。无论该句柄需要读取或写入数据都可调用此方法。
+            # $mrc是返回值，正常为CURLM_OK(0)表示已经全部处理完成，CURLM_CALL_MULTI_PERFORM(-1)表示还有未处理的
+            $mrc = curl_multi_exec($mh, $active);
+        } while ($mrc == CURLM_CALL_MULTI_PERFORM);
+        while ($active && $mrc == CURLM_OK) {
+            if (curl_multi_select($mh) != -1) {
+                do {
+                    $mrc = curl_multi_exec($mh, $active);
+                } while ($mrc == CURLM_CALL_MULTI_PERFORM);
+            }
+        }
+        # 获取结果
+        foreach($url_handlers as $key => $ch) {
+            $url_data[$key]['code'] = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $url_data[$key]['result'] = curl_multi_getcontent($ch);
+
+            # 删除处理完的cURL句柄
+            curl_multi_remove_handle($mh, $ch);
+        }
+
+        curl_multi_close($mh);
+        return self::api_return(200, null, $url_data);
+    }
+
     /**
      * Curl Post
      * @param string $url
      * @param array $data
      * @param bool $json
      * @param array $header
-     * @param array $others
-     * @return array
+     * @param array $self_config
+     * @param bool $single
+     * @return array|false|resource
      */
-    public function postSingleCurl(string $url, array $data, bool $json = false, array $header = [], array $others = [])
+    public static function postSingleRequest(string $url, array $data, bool $json = false, array $header = [], array $self_config = [], bool $single = true)
     {
-        if ($json){
-            $header_default = [
-                 'Accept: application/json',
-                 'Content-Type: application/json;charset=utf-8',
-            ];
-        } else {
-            $header_default = [
-                'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                'Content-Type: application/x-www-form-urlencoded',
-            ];
-        }
-
-        if (is_array($header) && !empty($header)) {
-            $header_default = array_merge($header_default, $header);
-        }
-
-        $default_config = [
-            'CURLOPT_SSL_VERIFYPEER' => false,
-            'CURLOPT_SSL_VERIFYHOST' => false,
-            'CURLOPT_FOLLOWLOCATION' => 1,
-            'CURLOPT_RETURNTRANSFER' => 1,
-            'CURLOPT_HEADER'         => false,
-            'CURLOPT_CONNECTTIMEOUT' => 5,
-            'CURLOPT_TIMEOUT'        => 10,
-            'CURLOPT_USERAGENT'      => 'Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:61.0) Gecko/20100101 Firefox/61.0',
-        ];
-        if (is_array($others) && !empty($others)) {
-            $default_config = array_merge($default_config, $others);
-        }
-
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_POST, true);
-        if ($json){
-             curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+
+        if (!empty($header)) {
+            if (is_array(reset($header))){
+                return self::api_return(400, 'header 仅支持一维关联数组');
+            }
+            if ($json){
+                $self_header= array_merge(self::$header_json_default, $header);
+                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+            } else {
+                $self_header = array_merge(self::$header_default, $header);
+                curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
+            }
         } else {
-            curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
+            if ($json){
+                $self_header= self::$header_json_default;
+                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+            } else {
+                $self_header = self::$header_default;
+                curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
+            }
         }
 
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, $default_config['CURLOPT_SSL_VERIFYPEER']);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, $default_config['CURLOPT_SSL_VERIFYHOST']);
-        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, $default_config['CURLOPT_FOLLOWLOCATION']);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, $default_config['CURLOPT_RETURNTRANSFER']);
-        curl_setopt($ch, CURLOPT_USERAGENT, $default_config['CURLOPT_USERAGENT']);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, $header_default);
-        curl_setopt($ch, CURLOPT_HEADER, $default_config['CURLOPT_HEADER']);
-        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $default_config['CURLOPT_CONNECTTIMEOUT']);
-        curl_setopt($ch, CURLOPT_TIMEOUT, $default_config['CURLOPT_TIMEOUT']);
+        if (!empty($self_config)) {
+            $self_config = array_merge(self::$default_config, $self_config);
+        } else {
+            $self_config = self::$default_config;
+        }
 
-        $result = curl_exec($ch);
-        if (curl_errno($ch)) {
-            $code = curl_errno($ch);
-            $message = curl_error($ch);
-            curl_close($ch);
-            return $this->api_return($code, $message);
-        }else{
-            $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            curl_close($ch);
-            return $this->api_return($code, null, $result);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $self_header);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, $self_config['CURLOPT_SSL_VERIFYPEER']);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, $self_config['CURLOPT_SSL_VERIFYHOST']);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, $self_config['CURLOPT_FOLLOWLOCATION']);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, $self_config['CURLOPT_RETURNTRANSFER']);
+        curl_setopt($ch, CURLOPT_USERAGENT, $self_config['CURLOPT_USERAGENT']);
+        curl_setopt($ch, CURLOPT_HEADER, $self_config['CURLOPT_HEADER']);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $self_config['CURLOPT_CONNECTTIMEOUT']);
+        curl_setopt($ch, CURLOPT_TIMEOUT, $self_config['CURLOPT_TIMEOUT']);
+
+        if ($single) {
+            return self::sendRequest($ch);
+        } else {
+            return $ch;
         }
     }
+
+
+
+    /**
+     * Curl_multi Get
+     * @param array $urls
+     * @param array $header
+     * @param array $self_config
+     * @return array
+     */
+    public static function getRequests(array $urls, array $header = [], array $self_config = [])
+    {
+        # 创建批处理cURL句柄
+        $mh = curl_multi_init();
+        # cURL资源数组
+        $url_handlers = [];
+        # 返回值
+        $url_data = [];
+        # 是否循环 header
+        $loop_header = false;
+
+        if (!empty($header)){
+            if (count($header) == 1) {
+                if (is_array(reset($header))){
+                    return self::api_return(400, 'header 仅支持一维关联数组(通用header)和二维索引数组(每个请求都有一个header)');
+                }
+            } else {
+                if (count($header) !== count($urls) || !is_array(reset($header))) {
+                    return self::api_return(400, 'header 仅支持一维关联数组(通用header)和二维索引数组(每个请求都有一个header)');
+                }
+                $loop_header = true;
+            }
+        }
+
+        # 创建cURL资源
+        foreach($urls as $key => $url) {
+            if ($loop_header){
+                $ch = self::getSingleRequest( $url, $header[$key], $self_config, false);
+            } else {
+                $ch = self::getSingleRequest( $url, $header, $self_config, false);
+            }
+
+            # 存入资源组
+            $url_handlers[] = $ch;
+            # 增加cURL句柄
+            if (!is_resource($ch)) {
+                return self::api_return(400, '非资源类型');
+            }
+            curl_multi_add_handle($mh, $ch);
+        }
+        # 活跃的连接数量
+        $active = null;
+
+        do {
+            # curl_multi_exec 处理在栈中的每一个句柄。无论该句柄需要读取或写入数据都可调用此方法。
+            # $mrc是返回值，正常为CURLM_OK(0)表示已经全部处理完成，CURLM_CALL_MULTI_PERFORM(-1)表示还有未处理的
+            $mrc = curl_multi_exec($mh, $active);
+        } while ($mrc == CURLM_CALL_MULTI_PERFORM);
+        while ($active && $mrc == CURLM_OK) {
+            if (curl_multi_select($mh) != -1) {
+                do {
+                    $mrc = curl_multi_exec($mh, $active);
+                } while ($mrc == CURLM_CALL_MULTI_PERFORM);
+            }
+        }
+        # 获取结果
+        foreach($url_handlers as $key => $ch) {
+            $url_data[$key]['code'] = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $url_data[$key]['result'] = curl_multi_getcontent($ch);
+
+            # 删除处理完的cURL句柄
+            curl_multi_remove_handle($mh, $ch);
+        }
+
+        curl_multi_close($mh);
+        return self::api_return(200, null, $url_data);
+    }
+
 
     /**
      * Curl Get
      * @param string $url
      * @param array $header
-     * @param array $others
-     * @return array
+     * @param array $self_config
+     * @param bool $single
+     * @return array|false|resource
      */
-    public function getSingleCurl(string $url, array $header = [], array $others = [])
+    public static function getSingleRequest(string $url, array $header = [], array $self_config = [], bool $single = true)
     {
-        $header_default = [
-            'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Content-Type: application/x-www-form-urlencoded',
-        ];
-
-        if (is_array($header) && !empty($header)) {
-            $header_default = array_merge($header_default, $header);
+        if (!empty($header)) {
+            if (is_array(reset($header))){
+                return self::api_return(400, 'header 仅支持一维关联数组');
+            }
+            $self_header = array_merge(self::$header_default, $header);
+        } else {
+            $self_header = self::$header_default;
         }
 
-        $default_config = [
-            'CURLOPT_SSL_VERIFYPEER' => false,
-            'CURLOPT_SSL_VERIFYHOST' => false,
-            'CURLOPT_FOLLOWLOCATION' => 1,
-            'CURLOPT_RETURNTRANSFER' => 1,
-            'CURLOPT_HEADER'         => false,
-            'CURLOPT_CONNECTTIMEOUT' => 5,
-            'CURLOPT_TIMEOUT'        => 10,
-            'CURLOPT_USERAGENT'      => 'Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:61.0) Gecko/20100101 Firefox/61.0',
-        ];
-
-        if (is_array($others) && !empty($others)) {
-            $default_config = array_merge($default_config, $others);
+        if (!empty($self_config)) {
+            $self_config = array_merge(self::$default_config, $self_config);
+        } else {
+            $self_config = self::$default_config;
         }
 
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, $default_config['CURLOPT_SSL_VERIFYPEER']);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, $default_config['CURLOPT_SSL_VERIFYHOST']);
-        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, $default_config['CURLOPT_FOLLOWLOCATION']);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, $default_config['CURLOPT_RETURNTRANSFER']);
-        curl_setopt($ch, CURLOPT_USERAGENT, $default_config['CURLOPT_USERAGENT']);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, $header_default);
-        curl_setopt($ch, CURLOPT_HEADER, $default_config['CURLOPT_HEADER']);
-        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $default_config['CURLOPT_CONNECTTIMEOUT']);
-        curl_setopt($ch, CURLOPT_TIMEOUT, $default_config['CURLOPT_TIMEOUT']);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $self_header);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, $self_config['CURLOPT_SSL_VERIFYPEER']);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, $self_config['CURLOPT_SSL_VERIFYHOST']);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, $self_config['CURLOPT_FOLLOWLOCATION']);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, $self_config['CURLOPT_RETURNTRANSFER']);
+        curl_setopt($ch, CURLOPT_USERAGENT, $self_config['CURLOPT_USERAGENT']);
+        curl_setopt($ch, CURLOPT_HEADER, $self_config['CURLOPT_HEADER']);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $self_config['CURLOPT_CONNECTTIMEOUT']);
+        curl_setopt($ch, CURLOPT_TIMEOUT, $self_config['CURLOPT_TIMEOUT']);
 
+        if ($single) {
+            return self::sendRequest($ch);
+        } else {
+            return $ch;
+        }
+    }
+
+    /**
+     * 发送单次请求
+     * @param $ch
+     * @return array
+     */
+    protected static function sendRequest($ch)
+    {
         $result = curl_exec($ch);
 
         if (curl_errno($ch)) {
             $code = curl_errno($ch);
             $message = curl_error($ch);
             curl_close($ch);
-            return $this->api_return($code, $message);
+            return self::api_return($code, $message);
         }else{
             $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
-            return $this->api_return($code, null, $result);
+            return self::api_return($code, null, $result);
         }
     }
 
@@ -144,7 +315,7 @@ class CurlsLibrary
      * @param array $data           返回数据
      * @return array
      */
-    public function api_return(int $code, $message = null, $data = null):array
+    protected static function api_return(int $code, $message = null, $data = null):array
     {
         $return = [
             'code' => $code,
