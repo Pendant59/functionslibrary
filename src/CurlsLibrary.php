@@ -17,6 +17,11 @@ class CurlsLibrary
         'Content-Type: application/json;charset=utf-8',
     ];
 
+    # POST upload file 请求头  
+    protected static $header_file_default = [
+        'Content-Type: multipart/form-data;charset=utf-8',
+    ];
+
     # 默认cURL设置 Default config
     protected static $default_config = [
         'CURLOPT_SSL_VERIFYPEER' => false,
@@ -29,12 +34,55 @@ class CurlsLibrary
         'CURLOPT_USERAGENT'      => 'Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:61.0) Gecko/20100101 Firefox/61.0',
     ];
 
+
+    /**
+     * Curl post uploadFiles
+     * @param string $url               带协议的请求地址
+     * @param array $data               参数数组
+     * @param array $header             自定义header
+     * @param array $self_config        自定义cURL设置
+     * @return array
+     */
+    public static function postUploadFiles(string $url, array $data, array $header = [], array $self_config = []) {
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_POST, true);
+
+        if (!empty($header)) {
+            if (is_array(reset($header))){
+                return self::api_return(400, 'header 仅支持一维关联数组');
+            }
+        }
+
+        $self_header= array_merge(self::$header_file_default, $header);
+
+        if (!empty($self_config)) {
+            $self_config = array_merge(self::$default_config, $self_config);
+        } else {
+            $self_config = self::$default_config;
+        }
+
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $self_header);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, $self_config['CURLOPT_SSL_VERIFYPEER']);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, $self_config['CURLOPT_SSL_VERIFYHOST']);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, $self_config['CURLOPT_FOLLOWLOCATION']);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, $self_config['CURLOPT_RETURNTRANSFER']);
+        curl_setopt($ch, CURLOPT_USERAGENT, $self_config['CURLOPT_USERAGENT']);
+        curl_setopt($ch, CURLOPT_HEADER, $self_config['CURLOPT_HEADER']);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $self_config['CURLOPT_CONNECTTIMEOUT']);
+        curl_setopt($ch, CURLOPT_TIMEOUT, $self_config['CURLOPT_TIMEOUT']);
+
+         return self::sendRequest($ch);
+    }
+
     /**
      * Curl multi post
-     * @param array $urls
-     * @param array $data
-     * @param array $header
-     * @param array $self_config
+     * POST 并发curl请求
+     * @param array $urls               带协议的请求地址
+     * @param array $data               参数数组
+     * @param array $header             自定义header
+     * @param array $self_config        自定义cURL设置
      * @return array
      */
     public static function postRequests(array $urls, array $data, array $header = [], array $self_config = [])
@@ -106,12 +154,13 @@ class CurlsLibrary
 
     /**
      * Curl Post
-     * @param string $url
-     * @param array $data
-     * @param bool $json
-     * @param array $header
-     * @param array $self_config
-     * @param bool $single
+     * POST 单次curl请求
+     * @param string $url                   带协议的请求地址
+     * @param array $data                   参数数组
+     * @param bool $json                    是否将参数转为json格式传输
+     * @param array $header                 自定义header
+     * @param array $self_config            自定义cURL设置
+     * @param bool $single                  默认true 返回请求结果，false 返回cURL句柄
      * @return array|false|resource
      */
     public static function postSingleRequest(string $url, array $data, bool $json = false, array $header = [], array $self_config = [], bool $single = true)
@@ -126,7 +175,7 @@ class CurlsLibrary
             }
             if ($json){
                 $self_header= array_merge(self::$header_json_default, $header);
-                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data,  JSON_UNESCAPED_UNICODE));
             } else {
                 $self_header = array_merge(self::$header_default, $header);
                 curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
@@ -134,7 +183,7 @@ class CurlsLibrary
         } else {
             if ($json){
                 $self_header= self::$header_json_default;
-                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data,  JSON_UNESCAPED_UNICODE));
             } else {
                 $self_header = self::$header_default;
                 curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
@@ -168,9 +217,10 @@ class CurlsLibrary
 
     /**
      * Curl_multi Get
-     * @param array $urls
-     * @param array $header
-     * @param array $self_config
+     * GET 并发curl请求
+     * @param array $urls                   带协议的请求地址
+     * @param array $header                 自定义header
+     * @param array $self_config            自定义cURL设置
      * @return array
      */
     public static function getRequests(array $urls, array $header = [], array $self_config = [])
@@ -244,10 +294,11 @@ class CurlsLibrary
 
     /**
      * Curl Get
-     * @param string $url
-     * @param array $header
-     * @param array $self_config
-     * @param bool $single
+     * GET 单次curl请求
+     * @param string $url                 带协议的请求地址
+     * @param array $header               自定义header
+     * @param array $self_config          自定义cURL设置
+     * @param bool $single                默认true 返回请求结果，false 返回cURL句柄
      * @return array|false|resource
      */
     public static function getSingleRequest(string $url, array $header = [], array $self_config = [], bool $single = true)
