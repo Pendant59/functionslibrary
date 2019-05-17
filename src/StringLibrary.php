@@ -2,6 +2,10 @@
 declare(strict_types=1);
 namespace functionsLibrary;
 
+/**
+ * Class StringLibrary
+ * @package functionsLibrary
+ */
 class StringLibrary
 {
     /**

@@ -2,7 +2,10 @@
 declare(strict_types=1);
 namespace functionsLibrary;
 
-
+/**
+ * Class CurlsLibrary
+ * @package functionsLibrary
+ */
 class CurlsLibrary
 {
     # 默认请求头 Default header
@@ -34,6 +37,54 @@ class CurlsLibrary
         'CURLOPT_USERAGENT'      => 'Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:61.0) Gecko/20100101 Firefox/61.0',
     ];
 
+    /**
+     * 发送POST,PUT,DELETE,PATCH 请求
+     * @param string $type
+     * @param string $url
+     * @param array $data
+     * @param array $header
+     * @param array $self_config
+     * @return array
+     */
+    public static function restfulRequest(string $type, string $url, array $data, array $header = [], array $self_config = [])
+    {
+        $type = strtoupper($type);
+        if (!in_array($type, ['PUT', 'DELETE', 'PATCH', 'POST'])) {
+            return self::api_return(400, '仅支持 POST,PUT,DELETE,PATCH');
+        }
+
+        if (!empty($header)) {
+            if (is_array(reset($header))){
+                return self::api_return(400, 'header 仅支持一维关联数组');
+            }
+            $self_header = array_merge(self::$header_default, $header);
+        } else {
+            $self_header = self::$header_default;
+        }
+
+        if (!empty($self_config)) {
+            $self_config = array_merge(self::$default_config, $self_config);
+        } else {
+            $self_config = self::$default_config;
+        }
+
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $type);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $self_header);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, $self_config['CURLOPT_SSL_VERIFYPEER']);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, $self_config['CURLOPT_SSL_VERIFYHOST']);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, $self_config['CURLOPT_FOLLOWLOCATION']);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, $self_config['CURLOPT_RETURNTRANSFER']);
+        curl_setopt($ch, CURLOPT_USERAGENT, $self_config['CURLOPT_USERAGENT']);
+        curl_setopt($ch, CURLOPT_HEADER, $self_config['CURLOPT_HEADER']);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $self_config['CURLOPT_CONNECTTIMEOUT']);
+        curl_setopt($ch, CURLOPT_TIMEOUT, $self_config['CURLOPT_TIMEOUT']);
+
+        return self::sendRequest($ch);
+    }
 
     /**
      * Curl post uploadFiles
