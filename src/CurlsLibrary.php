@@ -50,12 +50,12 @@ class CurlsLibrary
     {
         $type = strtoupper($type);
         if (!in_array($type, ['PUT', 'DELETE', 'PATCH', 'POST'])) {
-            return self::api_return(400, '仅支持 POST,PUT,DELETE,PATCH');
+            return self::apiReturn(400, '仅支持 POST,PUT,DELETE,PATCH');
         }
 
         if (!empty($header)) {
             if (is_array(reset($header))){
-                return self::api_return(400, 'header 仅支持一维关联数组');
+                return self::apiReturn(400, 'header 仅支持一维关联数组');
             }
             $self_header = array_merge(self::$header_default, $header);
         } else {
@@ -101,7 +101,7 @@ class CurlsLibrary
 
         if (!empty($header)) {
             if (is_array(reset($header))){
-                return self::api_return(400, 'header 仅支持一维关联数组');
+                return self::apiReturn(400, 'header 仅支持一维关联数组');
             }
         }
 
@@ -136,7 +136,7 @@ class CurlsLibrary
      * @param array $self_config        自定义cURL设置
      * @return array
      */
-    public static function postRequests(array $urls, array $data, array $header = [], array $self_config = [])
+    public static function postMultiRequests(array $urls, array $data, array $header = [], array $self_config = [])
     {
         # 创建批处理cURL句柄
         $mh = curl_multi_init();
@@ -150,11 +150,11 @@ class CurlsLibrary
         if (!empty($header)){
             if (count($header) == 1) {
                 if (is_array(reset($header))){
-                    return self::api_return(400, 'header 仅支持一维关联数组(通用header)和二维索引数组(每个请求都有一个header)');
+                    return self::apiReturn(400, 'header 仅支持一维关联数组(通用header)和二维索引数组(每个请求都有一个header)');
                 }
             } else {
                 if (count($header) !== count($urls) || !is_array(reset($header))) {
-                    return self::api_return(400, 'header 仅支持一维关联数组(通用header)和二维索引数组(每个请求都有一个header)');
+                    return self::apiReturn(400, 'header 仅支持一维关联数组(通用header)和二维索引数组(每个请求都有一个header)');
                 }
                 $loop_header = true;
             }
@@ -162,15 +162,15 @@ class CurlsLibrary
 
         foreach($urls as $key => $url) {
             if ($loop_header){
-                $ch = self::postSingleRequest($url, $data[$key]['data'], $data[$key]['json'], $header[$key], $self_config, false);
+                $ch = self::postRequest($url, $data[$key]['data'], $data[$key]['json'], $header[$key], $self_config, false);
             } else {
-                $ch = self::postSingleRequest($url, $data[$key]['data'], $data[$key]['json'], $header, $self_config, false);
+                $ch = self::postRequest($url, $data[$key]['data'], $data[$key]['json'], $header, $self_config, false);
             }
             # 存入资源组
             $url_handlers[] = $ch;
             # 增加cURL句柄
             if (!is_resource($ch)) {
-                return self::api_return(400, '非资源类型');
+                return self::apiReturn(400, '非资源类型');
             }
             curl_multi_add_handle($mh, $ch);
         }
@@ -200,7 +200,7 @@ class CurlsLibrary
         }
 
         curl_multi_close($mh);
-        return self::api_return(200, null, $url_data);
+        return self::apiReturn(200, null, $url_data);
     }
 
     /**
@@ -214,7 +214,7 @@ class CurlsLibrary
      * @param bool $single                  默认true 返回请求结果，false 返回cURL句柄
      * @return array|false|resource
      */
-    public static function postSingleRequest(string $url, array $data, bool $json = false, array $header = [], array $self_config = [], bool $single = true)
+    public static function postRequest(string $url, array $data, bool $json = false, array $header = [], array $self_config = [], bool $single = true)
     {
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
@@ -222,7 +222,7 @@ class CurlsLibrary
 
         if (!empty($header)) {
             if (is_array(reset($header))){
-                return self::api_return(400, 'header 仅支持一维关联数组');
+                return self::apiReturn(400, 'header 仅支持一维关联数组');
             }
             if ($json){
                 $self_header= array_merge(self::$header_json_default, $header);
@@ -274,7 +274,7 @@ class CurlsLibrary
      * @param array $self_config            自定义cURL设置
      * @return array
      */
-    public static function getRequests(array $urls, array $header = [], array $self_config = [])
+    public static function getMultiRequests(array $urls, array $header = [], array $self_config = [])
     {
         # 创建批处理cURL句柄
         $mh = curl_multi_init();
@@ -288,11 +288,11 @@ class CurlsLibrary
         if (!empty($header)){
             if (count($header) == 1) {
                 if (is_array(reset($header))){
-                    return self::api_return(400, 'header 仅支持一维关联数组(通用header)和二维索引数组(每个请求都有一个header)');
+                    return self::apiReturn(400, 'header 仅支持一维关联数组(通用header)和二维索引数组(每个请求都有一个header)');
                 }
             } else {
                 if (count($header) !== count($urls) || !is_array(reset($header))) {
-                    return self::api_return(400, 'header 仅支持一维关联数组(通用header)和二维索引数组(每个请求都有一个header)');
+                    return self::apiReturn(400, 'header 仅支持一维关联数组(通用header)和二维索引数组(每个请求都有一个header)');
                 }
                 $loop_header = true;
             }
@@ -301,16 +301,16 @@ class CurlsLibrary
         # 创建cURL资源
         foreach($urls as $key => $url) {
             if ($loop_header){
-                $ch = self::getSingleRequest( $url, $header[$key], $self_config, false);
+                $ch = self::getRequest( $url, $header[$key], $self_config, false);
             } else {
-                $ch = self::getSingleRequest( $url, $header, $self_config, false);
+                $ch = self::getRequest( $url, $header, $self_config, false);
             }
 
             # 存入资源组
             $url_handlers[] = $ch;
             # 增加cURL句柄
             if (!is_resource($ch)) {
-                return self::api_return(400, '非资源类型');
+                return self::apiReturn(400, '非资源类型');
             }
             curl_multi_add_handle($mh, $ch);
         }
@@ -339,7 +339,7 @@ class CurlsLibrary
         }
 
         curl_multi_close($mh);
-        return self::api_return(200, null, $url_data);
+        return self::apiReturn(200, null, $url_data);
     }
 
 
@@ -352,11 +352,11 @@ class CurlsLibrary
      * @param bool $single                默认true 返回请求结果，false 返回cURL句柄
      * @return array|false|resource
      */
-    public static function getSingleRequest(string $url, array $header = [], array $self_config = [], bool $single = true)
+    public static function getRequest(string $url, array $header = [], array $self_config = [], bool $single = true)
     {
         if (!empty($header)) {
             if (is_array(reset($header))){
-                return self::api_return(400, 'header 仅支持一维关联数组');
+                return self::apiReturn(400, 'header 仅支持一维关联数组');
             }
             $self_header = array_merge(self::$header_default, $header);
         } else {
@@ -401,14 +401,13 @@ class CurlsLibrary
             $code = curl_errno($ch);
             $message = curl_error($ch);
             curl_close($ch);
-            return self::api_return($code, $message);
+            return self::apiReturn($code, $message);
         }else{
             $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
-            return self::api_return($code, null, $result);
+            return self::apiReturn($code, null, $result);
         }
     }
-
 
     /**
      * 返回
@@ -417,7 +416,7 @@ class CurlsLibrary
      * @param array $data           返回数据
      * @return array
      */
-    protected static function api_return(int $code, $message = null, $data = null):array
+    protected static function apiReturn(int $code, $message = null, $data = null):array
     {
         $return = [
             'code' => $code,
@@ -428,4 +427,5 @@ class CurlsLibrary
         }
         return $return;
     }
+
 }

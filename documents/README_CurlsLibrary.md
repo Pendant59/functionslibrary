@@ -39,7 +39,7 @@ $default_config = [
  * @param bool $single                默认true 返回请求结果，false 返回cURL句柄
  * @return array|false|resource
  */
-public static function getSingleRequest(
+public static function getRequest(
                             string $url, 
                             array $header = [], 
                             array $self_config = [], 
@@ -55,7 +55,7 @@ public static function getSingleRequest(
  * @param array $self_config            自定义cURL设置
  * @return array
  */
-public static function getRequests(
+public static function getMultiRequests(
                             array $urls, 
                             array $header = [], 
                             array $self_config = []
@@ -76,7 +76,7 @@ public static function getRequests(
  * @param bool $single                  默认true 返回请求结果，false 返回cURL句柄
  * @return array
  */
-public static function postSingleRequest(
+public static function postRequest(
                             string $url, 
                             array $data, 
                             bool $json = false, 
@@ -96,7 +96,7 @@ public static function postSingleRequest(
  * @param array $self_config        自定义cURL设置
  * @return array
  */
-public static function postRequests(
+public static function postMultiRequests(
                             array $urls, 
                             array $data, 
                             array $header = [], 
@@ -107,19 +107,19 @@ public static function postRequests(
 
 - GET
 ```
-$result = CurlsLibrary::getSingleRequest('https://api.github.com/');
+$result = CurlsLibrary::getRequest('https://api.github.com/');
 
 
 # header的格式(该header仅做演示，请求github加上这个header是没用的)
 $header = [
     'Authorization: 123456789'   
 ];
-$result = CurlsLibrary::getSingleRequest('https://api.github.com/', $header);
+$result = CurlsLibrary::getRequest('https://api.github.com/', $header);
 
 ```
 - GET multi
 ```
-$result= CurlsLibrary::getRequests( ['https://api.github.com/','https://api.github.com/users/pendant59'] );
+$result= CurlsLibrary::getMultiRequests( ['https://api.github.com/','https://api.github.com/users/pendant59'] );
 
 # 当前这一批次请求共用一个header的格式(该header仅做演示，请求github加上这个header是没用的)
 $header = [
@@ -132,7 +132,7 @@ $header = [
     ['Authorization: 23456789'],
 ];
 
-$result = CurlsLibrary::getRequests(['https://api.github.com/','https://api.github.com/users/pendant59'], $header);
+$result = CurlsLibrary::getMultiRequests(['https://api.github.com/','https://api.github.com/users/pendant59'], $header);
 
 ```
 
@@ -144,10 +144,10 @@ $data = [
     ];
 
 # 一般的post请求    
-$result = CurlsLibrary::postSingleRequest('http://xxxxx/v1/login', $data);
+$result = CurlsLibrary::postRequest('http://xxxxx/v1/login', $data);
 
 # 将参数数组($data)转义成jsong格式传输   
-$result = CurlsLibrary::postSingleRequest('http://xxxxx/v1/login', $data, true);
+$result = CurlsLibrary::postRequest('http://xxxxx/v1/login', $data, true);
 
 ```
 
@@ -175,6 +175,6 @@ $urls = [
     'http://xxxx/v1/login'
 ];
     
-$result = CurlsLibrary::postRequests($urls, $data);
+$result = CurlsLibrary::postMultiRequests($urls, $data);
 
 ```
