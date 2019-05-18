@@ -11,8 +11,12 @@ $header_default = [
 
 # Json请求头 Default Json header
 $header_json_default = [
-    'Accept: application/json',
     'Content-Type: application/json;charset=utf-8',
+];
+
+# POST upload file 请求头  
+protected static $header_file_default = [
+    'content-type: multipart/form-data;charset=utf-8',
 ];
 
 # 默认cURL设置 Default config
@@ -23,7 +27,7 @@ $default_config = [
     'CURLOPT_RETURNTRANSFER' => 1,
     'CURLOPT_HEADER'         => false,
     'CURLOPT_CONNECTTIMEOUT' => 5,
-    'CURLOPT_TIMEOUT'        => 10,
+    'CURLOPT_TIMEOUT'        => 7,
     'CURLOPT_USERAGENT'      => 'Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:61.0) Gecko/20100101 Firefox/61.0',
 ];
 ```
@@ -50,9 +54,10 @@ public static function getRequest(
 /**
  * Curl_multi Get
  * GET 并发curl请求
+ * 不支持Windows系统的集成环境
  * @param array $urls                   带协议的请求地址
- * @param array $header                 自定义header
- * @param array $self_config            自定义cURL设置
+ * @param array $header                 自定义header 仅支持一维关联数组(通用header) 或 二维索引数组(每个请求都有一个header)
+ * @param array $self_config            自定义cURL设置 仅支持一维关联数组(通用self_config)
  * @return array
  */
 public static function getMultiRequests(
@@ -73,7 +78,6 @@ public static function getMultiRequests(
  * @param bool $json                    是否将参数转为json格式传输
  * @param array $header                 自定义header
  * @param array $self_config            自定义cURL设置
- * @param bool $single                  默认true 返回请求结果，false 返回cURL句柄
  * @return array
  */
 public static function postRequest(
@@ -81,8 +85,7 @@ public static function postRequest(
                             array $data, 
                             bool $json = false, 
                             array $header = [], 
-                            array $self_config = [], 
-                            bool $single = true
+                            array $self_config = []
                             ) {}
                             
                             
@@ -90,10 +93,11 @@ public static function postRequest(
 /**
  * Curl multi post
  * POST 并发curl请求
+ * 不支持Windows系统的集成环境
  * @param array $urls               带协议的请求地址
  * @param array $data               参数数组
- * @param array $header             自定义header
- * @param array $self_config        自定义cURL设置
+ * @param array $header             自定义header 仅支持一维关联数组(通用header) 或 二维索引数组(每个请求都有一个header)
+ * @param array $self_config        自定义cURL设置 仅支持一维关联数组(通用self_config)
  * @return array
  */
 public static function postMultiRequests(
@@ -112,7 +116,7 @@ $result = CurlsLibrary::getRequest('https://api.github.com/');
 
 # header的格式(该header仅做演示，请求github加上这个header是没用的)
 $header = [
-    'Authorization: 123456789'   
+    'Authorization' =>  123456789'   
 ];
 $result = CurlsLibrary::getRequest('https://api.github.com/', $header);
 
@@ -123,13 +127,13 @@ $result= CurlsLibrary::getMultiRequests( ['https://api.github.com/','https://api
 
 # 当前这一批次请求共用一个header的格式(该header仅做演示，请求github加上这个header是没用的)
 $header = [
-    'Authorization: 123456789'
+    'Authorization' =>  'a123456789'
 ];
 
 # 当前每一个请求都有一个单独的header (注意：count($header) == count($urls) 一个url对应一个header)
 $header = [
-    ['Authorization: 123456789'],
-    ['Authorization: 23456789'],
+    ['Authorization' =>  'a123456789'],
+    ['Authorization' =>  'qweasd6789'],
 ];
 
 $result = CurlsLibrary::getMultiRequests(['https://api.github.com/','https://api.github.com/users/pendant59'], $header);
