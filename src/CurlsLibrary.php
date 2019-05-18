@@ -107,11 +107,7 @@ class CurlsLibrary
 
         $self_header= array_merge(self::$header_file_default, $header);
 
-        if (!empty($self_config)) {
-            $self_config = array_merge(self::$default_config, $self_config);
-        } else {
-            $self_config = self::$default_config;
-        }
+        $self_config = self::initConfig($self_config);
 
         curl_setopt($ch, CURLOPT_HTTPHEADER, $self_header);
         curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
@@ -363,29 +359,49 @@ class CurlsLibrary
             $self_header = self::$header_default;
         }
 
-        if (!empty($self_config)) {
-            $self_config = array_merge(self::$default_config, $self_config);
-        } else {
-            $self_config = self::$default_config;
-        }
+        $config = self::initConfig($self_config);
+        $ch = self::initGetCurl($url, $self_header, $config);
 
+        return $single ? self::sendRequest($ch) : $ch;
+
+    }
+
+    /**
+     * 初始化GET请求cURL句柄
+     * @param string $url
+     * @param array $header
+     * @param array $config
+     * @return false|resource
+     */
+    protected static function initGetCurl(string $url, array $header, array $config)
+    {
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, $self_header);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, $self_config['CURLOPT_SSL_VERIFYPEER']);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, $self_config['CURLOPT_SSL_VERIFYHOST']);
-        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, $self_config['CURLOPT_FOLLOWLOCATION']);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, $self_config['CURLOPT_RETURNTRANSFER']);
-        curl_setopt($ch, CURLOPT_USERAGENT, $self_config['CURLOPT_USERAGENT']);
-        curl_setopt($ch, CURLOPT_HEADER, $self_config['CURLOPT_HEADER']);
-        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $self_config['CURLOPT_CONNECTTIMEOUT']);
-        curl_setopt($ch, CURLOPT_TIMEOUT, $self_config['CURLOPT_TIMEOUT']);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $header);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, $config['CURLOPT_SSL_VERIFYPEER']);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, $config['CURLOPT_SSL_VERIFYHOST']);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, $config['CURLOPT_FOLLOWLOCATION']);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, $config['CURLOPT_RETURNTRANSFER']);
+        curl_setopt($ch, CURLOPT_USERAGENT, $config['CURLOPT_USERAGENT']);
+        curl_setopt($ch, CURLOPT_HEADER, $config['CURLOPT_HEADER']);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $config['CURLOPT_CONNECTTIMEOUT']);
+        curl_setopt($ch, CURLOPT_TIMEOUT, $config['CURLOPT_TIMEOUT']);
+        return $ch;
+    }
 
-        if ($single) {
-            return self::sendRequest($ch);
+    /**
+     * 合并配置参数
+     * @param $config
+     * @return array
+     */
+    public static function initConfig($config)
+    {
+        if (!empty($config)) {
+            $new_config = array_merge(self::$default_config, $config);
         } else {
-            return $ch;
+            $new_config = self::$default_config;
         }
+        return $new_config;
     }
 
     /**
