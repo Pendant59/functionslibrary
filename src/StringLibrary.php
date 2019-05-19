@@ -9,6 +9,35 @@ namespace functionsLibrary;
 class StringLibrary
 {
     /**
+     * 随机字符串
+     * @param int $length           长度
+     * @param int $type             强度类型 1:[0-9], 2:[A-Za-z0-9] others:[A-Za-z0-9!@%-_=+]
+     * @param string $prefix        前缀
+     * @return string
+     */
+    public static function getRandomString(int $length, int $type = 1, string $prefix = '')
+    {
+        switch ($type) {
+            case 1;
+                $chars = str_shuffle('0123456789');
+                break;
+            case 2;
+                $chars = str_shuffle('ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxy123456789');
+                break;
+            default:
+                $chars = str_shuffle('ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxy123456789!@%-_=+');
+                break;
+        }
+        $length = $length - strlen($prefix);
+        $max_length = strlen($chars) - 1;
+        $string = $prefix;
+        for ($i = 0; $i < $length; $i++) {
+            $string .= substr($chars, mt_rand(0, $max_length), 1);
+        }
+        return $string;
+    }
+
+    /**
      * 字符串截取
      * @param string $str           待截取字符串
      * @param int $begin            起始位置
