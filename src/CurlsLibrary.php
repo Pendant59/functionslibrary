@@ -49,7 +49,7 @@ class CurlsLibrary
      * @param array $self_config
      * @return array
      */
-    public static function restfulRequest(string $type, string $url, array $data, bool $json, array $header = [], array $self_config = [])
+    public static function restfulRequest(string $type, string $url, array $data = [], bool $json = false, array $header = [], array $self_config = [])
     {
         $type = strtoupper($type);
         if (!in_array($type, ['PUT', 'DELETE', 'PATCH', 'POST'])) {
